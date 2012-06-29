@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -e
 # You may need to change this.
 
 ARDUINODIR="/usr/share/arduino"
@@ -33,8 +33,13 @@ if [ "x${ARDUINO_VER}" = "x" ] ; then
 	esac
 fi
 
+
+CC="${AVRTOOLDIR}/avr-gcc"
+AR="${AVRTOOLDIR}/avr-ar"
 OBJDUMP="${AVRTOOLDIR}/avr-objdump"
 MYDIR=$(dirname $(readlink -f "$0"))
+OBJDIR="${MYDIR}/build"
+mkdir -p ${OBJDIR}
 INCLUDES="-I${ARDUINODIR}/hardware/arduino/cores/arduino
          -I${ARDUINODIR}/hardware/arduino/variants/standard
          -I${MYDIR}/libraries/StandardCplusplus
@@ -44,23 +49,46 @@ DEFINES="-DF_CPU=16000000L
         -DUSB_VID=null
         -DUSB_PID=null"
 
-SHAREDFLAGS="-Wall
+SHAREDFLAGS="-c
+			-g
+			-Wall
             -ffunction-sections
             -fdata-sections
-            -fno-exceptions
             -mmcu=atmega328p
             ${DEFINES}
             ${INCLUDES}"
 
+CXXFLAGS="-fno-exceptions"
+LIBS=${MYDIR}/core.a
+LINKFLAGS="-g -mmcu=atmega328p -Wl,--gc-sections -lm"
+
+# Build the libraries
+if [ ! -f ${MYDIR}/core.a ]; then
+	templib=${OBJDIR}/core.a
+	for fn in ${ARDUINODIR}/hardware/arduino/cores/arduino/*.c*; do
+		outname=${OBJDIR}/$(basename $fn).o
+		if [ "$(basename $fn .cpp)" = "$(basename $fn)" ]; then
+			#couldn't remove .cpp, so it's a c file.
+			${CC} -Os ${SHAREDFLAGS} $fn -o $outname
+		else
+			${CXX} -Os ${CXXFLAGS} ${SHAREDFLAGS} $fn -o $outname
+		fi
+		${AR} rcs ${templib} ${outname}
+	done
+	cp ${templib} ${MYDIR}/core.a
+fi
+
 build_and_disasm() {
-	NAME=$1
+	NAME=build_with_$1
 	OPT=-${1}
 	echo
 	echo ----------------------- Building with ${OPT}
-	
-	set -x verbose
-	${CXX} -c -g ${OPT} ${SHAREDFLAGS}  ${MYDIR}/main.cpp -o ${NAME}.o && \
-	${OBJDUMP} -d -S --line-numbers ${NAME}.o > ${NAME}.S
+	echo
+	echo ${CXX} ${OPT} ${SHAREDFLAGS}  ${MYDIR}/main.cpp -o ${OBJDIR}/${NAME}.o
+	echo
+	${CXX} ${OPT} ${SHAREDFLAGS}  ${MYDIR}/main.cpp -o ${OBJDIR}/${NAME}.o && \
+	${CXX} ${OPT} ${LINKFLAGS} ${OBJDIR}/${NAME}.o -o ${OBJDIR}/${NAME}.elf ${LIBS} &&
+	${OBJDUMP} -d -S --line-numbers ${OBJDIR}/${NAME}.elf > ${MYDIR}/${NAME}.S
 }
 
 if [ "x$1" = "x" ]; then
