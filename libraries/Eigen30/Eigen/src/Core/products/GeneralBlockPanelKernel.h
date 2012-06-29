@@ -44,10 +44,16 @@ inline void manage_caching_sizes(Action action, std::ptrdiff_t* l1=0, std::ptrdi
   #pragma omp threadprivate(m_l1CacheSize,m_l2CacheSize)
   if(m_l1CacheSize==0)
   {
-    m_l1CacheSize = manage_caching_sizes_helper(queryL1CacheSize(),8 * 1024);
+    m_l1CacheSize = manage_caching_sizes_helper(queryL1CacheSize(),
+#ifdef __AVR__
+    1 // Uninformed guess - just know that ptrdiff_t is 16-bits on AVR.
+#else
+    8 * 1024
+#endif
+    );
     m_l2CacheSize = manage_caching_sizes_helper(queryTopLevelCacheSize(),
 #ifdef __AVR__
-    8 * 1024 // Uninformed guess - just know that ptrdiff_t is 16-bits on AVR.
+    1 // Uninformed guess - just know that ptrdiff_t is 16-bits on AVR.
 #else
     1*1024*1024
 #endif
