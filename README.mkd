@@ -1,0 +1,11 @@
+Just a quick testcase for Eigen on Arduino (AVR-GCC toolchain).
+
+Don't forget to `git clone --recursive` or `git submodule update --init` to get the submodule, too!
+
+## Command Line
+`build.sh` will build the Arduino core library as well as the test sketch whose code is in `testsketch/testsketch.ino`. It will do the build + link of the sketch by default three times: once at `-O1`, once at `-Os` (which is what Arduino uses and what is recommended), and once at `-O2`. It will then use `avr-objdump` to dump a disassembly of each elf file. A visual diff tool like Meld is useful here.
+
+You might need to edit a few variables at the top of `build.sh` to suit your system.
+
+## IDE
+If you use the Arduino IDE, you can set this directory as your sketchbook directory, and you'll be able to build "testsketch" after restarting the IDE.
